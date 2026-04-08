@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import uvicorn
 from pydantic import BaseModel
 
@@ -25,8 +25,16 @@ def health() -> dict[str, str]:
 
 
 @app.post("/reset", response_model=SecurityObservation)
-def reset(request: ResetRequest | None = None) -> SecurityObservation:
-    tier = request.tier if request is not None else None
+async def reset(request: Request) -> SecurityObservation:
+    tier: int | None = None
+    try:
+        payload = await request.json()
+        if isinstance(payload, dict):
+            raw_tier = payload.get("tier")
+            if raw_tier is not None:
+                tier = int(raw_tier)
+    except Exception:
+        tier = None
     return env.reset(tier=tier)
 
 
