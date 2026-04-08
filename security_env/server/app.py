@@ -25,8 +25,9 @@ def health() -> dict[str, str]:
 
 
 @app.post("/reset", response_model=SecurityObservation)
-def reset(request: ResetRequest) -> SecurityObservation:
-    return env.reset(tier=request.tier)
+def reset(request: ResetRequest | None = None) -> SecurityObservation:
+    tier = request.tier if request is not None else None
+    return env.reset(tier=tier)
 
 
 @app.post("/step")
