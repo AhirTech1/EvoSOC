@@ -1,0 +1,7 @@
+name: security-defense-v1
+version: 0.1.0
+description: RL environment for automated network threat containment.
+sdk: docker
+models:
+  action: SecurityAction
+  observation: SecurityObservation
