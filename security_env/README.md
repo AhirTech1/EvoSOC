@@ -1,3 +1,14 @@
+---
+title: EvoSOC Security Defense v1
+emoji: 🛡️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+---
+
 # EvoSOC — Autonomous SOC Analyst Environment (OpenEnv)
 
 EvoSOC is a real-world reinforcement learning environment for Security Operations Center (SOC) automation. An agent monitors security logs, triages alerts, and executes mitigation actions against active attacks in a simulated enterprise network.
@@ -81,6 +92,34 @@ python grader.py
 ## Baseline inference (`inference.py`)
 
 The baseline script uses the OpenAI client and is configured via required environment variables:
+
+- `API_BASE_URL`
+- `MODEL_NAME`
+- `HF_TOKEN`
+
+### Environment variables (local + Space)
+
+Required:
+
+- `API_BASE_URL` → OpenAI-compatible base URL (for Hugging Face routing: `https://router.huggingface.co/v1`)
+- `MODEL_NAME` → model identifier (prefer exact string from HF Playground snippet, e.g. `Qwen/Qwen2.5-7B-Instruct-1M` or provider-suffixed form)
+- `HF_TOKEN` → Hugging Face token with Inference permissions
+
+Optional (safe defaults):
+
+- `MAX_STEPS` → max steps per task episode (default in code: 12)
+- `PYTHONUNBUFFERED` → set to `1` for real-time logs in containers/Spaces
+
+Local shell example (fish):
+
+```bash
+set -xg API_BASE_URL "https://router.huggingface.co/v1"
+set -xg MODEL_NAME "Qwen/Qwen2.5-7B-Instruct-1M"
+set -xg HF_TOKEN "hf_..."
+set -xg PYTHONUNBUFFERED "1"
+```
+
+Hugging Face Space Secrets (Settings → Variables and secrets):
 
 - `API_BASE_URL`
 - `MODEL_NAME`
