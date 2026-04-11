@@ -121,15 +121,21 @@ def _parse_action_payload(text: str) -> dict[str, Any] | None:
     return None
 
 
-def decide_action(client: OpenAI, observation: dict) -> SecurityAction:
-    response = client.responses.create(
-        model=os.environ["MODEL_NAME"],
-        input=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": json.dumps(observation)},
-        ],
-        temperature=0,
-    )
+def decide_action(client: OpenAI | None, model_name: str, observation: dict) -> SecurityAction:
+    if client is None:
+        return _default_action(observation)
+
+    try:
+        response = client.responses.create(
+            model=model_name,
+            input=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": json.dumps(observation)},
+            ],
+            temperature=0,
+        )
+    except Exception:
+        return _default_action(observation)
 
     payload = _parse_action_payload(response.output_text)
     if payload is None:
@@ -142,13 +148,13 @@ def decide_action(client: OpenAI, observation: dict) -> SecurityAction:
         return _default_action(observation)
 
 
-def run_episode(client: OpenAI, tier: int, max_steps: int = 12) -> tuple[float, dict[str, Any]]:
+def run_episode(client: OpenAI | None, model_name: str, tier: int, max_steps: int = 12) -> tuple[float, dict[str, Any]]:
     env = SecurityDefenseEnvironment(seed=17 + tier)
     obs = env.reset(tier=tier)
     total_reward = 0.0
 
     for step in range(max_steps):
-        action = decide_action(client, obs.model_dump())
+        action = decide_action(client, model_name, obs.model_dump())
         result = env.step(action)
         total_reward += float(result.reward)
         _emit(
@@ -171,24 +177,27 @@ def run_episode(client: OpenAI, tier: int, max_steps: int = 12) -> tuple[float, 
 
 
 def main() -> None:
-    api_base_url = os.environ["API_BASE_URL"]
-    model_name = os.environ["MODEL_NAME"]
-    hf_token = os.environ["HF_TOKEN"]
+    api_base_url = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+    model_name = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct-1M")
+    hf_token = os.getenv("HF_TOKEN")
 
-    client = OpenAI(api_key=hf_token, base_url=api_base_url)
+    client: OpenAI | None = None
+    if hf_token:
+        client = OpenAI(api_key=hf_token, base_url=api_base_url)
 
     _emit(
         "START",
         {
             "model": model_name,
             "api_base_url": api_base_url,
+            "llm_enabled": bool(hf_token),
             "tasks": ["easy_tier1", "medium_tier2", "hard_tier3"],
         },
     )
 
     task_scores: dict[str, float] = {}
     for tier, name in ((1, "easy_tier1"), (2, "medium_tier2"), (3, "hard_tier3")):
-        score, final_state = run_episode(client=client, tier=tier)
+        score, final_state = run_episode(client=client, model_name=model_name, tier=tier)
         task_scores[name] = score
         _emit(
             "STEP",
