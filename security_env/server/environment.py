@@ -5,7 +5,10 @@ import json
 from random import Random
 from typing import Any
 
-from models import ActionType, SecurityAction, SecurityAlert, SecurityLogEvent, SecurityObservation
+try:
+    from models import ActionType, SecurityAction, SecurityAlert, SecurityLogEvent, SecurityObservation
+except ModuleNotFoundError:
+    from security_env.models import ActionType, SecurityAction, SecurityAlert, SecurityLogEvent, SecurityObservation
 
 try:
     from openenv_core.env import Environment, StepResult

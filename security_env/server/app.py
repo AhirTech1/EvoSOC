@@ -4,8 +4,12 @@ from fastapi import FastAPI, Request
 import uvicorn
 from pydantic import BaseModel
 
-from models import SecurityAction, SecurityObservation
-from server.environment import SecurityDefenseEnvironment
+try:
+    from models import SecurityAction, SecurityObservation
+    from server.environment import SecurityDefenseEnvironment
+except ModuleNotFoundError:
+    from security_env.models import SecurityAction, SecurityObservation
+    from security_env.server.environment import SecurityDefenseEnvironment
 
 app = FastAPI(title="Security Defense OpenEnv")
 env = SecurityDefenseEnvironment()

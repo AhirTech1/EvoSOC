@@ -7,8 +7,12 @@ from typing import Any
 
 from openai import OpenAI
 
-from models import ActionType, SecurityAction
-from server.environment import SecurityDefenseEnvironment
+try:
+    from models import ActionType, SecurityAction
+    from server.environment import SecurityDefenseEnvironment
+except ModuleNotFoundError:
+    from security_env.models import ActionType, SecurityAction
+    from security_env.server.environment import SecurityDefenseEnvironment
 
 SYSTEM_PROMPT = """
 You are an autonomous SOC analyst. You must return exactly one JSON object with keys:
