@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from server.environment import SecurityDefenseEnvironment
+try:
+    from server.environment import SecurityDefenseEnvironment
+except ModuleNotFoundError:
+    from security_env.server.environment import SecurityDefenseEnvironment
 
 
 def _strict_unit_score(value: float) -> float:
@@ -43,15 +46,18 @@ def grade_episode(tier: int, policy_actions: list[int], seed: int = 7) -> float:
 
 def main() -> None:
     playbooks = {
-        1: [0, 1, 3],
-        2: [0, 2, 3],
-        3: [0, 1, 3],
+        "easy_tier1": (1, [0, 1, 3]),
+        "medium_tier2": (2, [0, 2, 3]),
+        "hard_tier3": (3, [0, 1, 3]),
     }
 
-    tier_scores = {tier: grade_episode(tier, actions) for tier, actions in playbooks.items()}
-    final = round(_strict_unit_score(sum(tier_scores.values()) / 3.0), 4)
+    task_scores = {
+        task_name: grade_episode(tier, actions)
+        for task_name, (tier, actions) in playbooks.items()
+    }
+    final = round(_strict_unit_score(sum(task_scores.values()) / 3.0), 4)
 
-    print({"tier_scores": tier_scores, "final_score": final})
+    print({"task_scores": task_scores, "final_score": final})
 
 
 if __name__ == "__main__":
