@@ -125,6 +125,11 @@ def _parse_action_payload(text: str) -> dict[str, Any] | None:
     return None
 
 
+def _strict_unit_score(value: float) -> float:
+    bounded = max(0.0, min(1.0, value))
+    return max(0.0001, min(0.9999, bounded))
+
+
 def decide_action(client: OpenAI | None, model_name: str, observation: dict) -> SecurityAction:
     if client is None:
         return _default_action(observation)
@@ -176,7 +181,7 @@ def run_episode(client: OpenAI | None, model_name: str, tier: int, max_steps: in
             break
 
     final_state = env.state()
-    score = max(0.0, min(1.0, (total_reward + 5.0) / 10.0))
+    score = _strict_unit_score((total_reward + 5.0) / 10.0)
     return round(score, 4), final_state
 
 
@@ -213,7 +218,7 @@ def main() -> None:
             },
         )
 
-    baseline_score = round(sum(task_scores.values()) / 3.0, 4)
+    baseline_score = round(_strict_unit_score(sum(task_scores.values()) / 3.0), 4)
     _emit("END", {"task_scores": task_scores, "baseline_score": baseline_score})
 
 
