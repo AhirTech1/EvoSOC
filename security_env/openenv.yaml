@@ -8,10 +8,10 @@ models:
 tasks:
   - id: easy_tier1
     name: "Easy: Brute Force"
-    grader: deterministic
+    grader: "grader:grade"
   - id: medium_tier2
     name: "Medium: Lateral Movement"
-    grader: deterministic
+    grader: "grader:grade"
   - id: hard_tier3
     name: "Hard: Data Exfiltration"
-    grader: deterministic
+    grader: "grader:grade"

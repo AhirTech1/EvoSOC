@@ -80,7 +80,7 @@ def main() -> None:
 
     tier_scores = {str(i + 1): score for i, score in enumerate(task_scores.values())}
     tasks = [
-        {"id": task_id, "grader": "deterministic", "score": score}
+        {"id": task_id, "grader": "grader:grade", "score": score}
         for task_id, score in task_scores.items()
     ]
     final = round(_strict_unit_score(sum(task_scores.values()) / len(task_scores)), 4)

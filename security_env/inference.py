@@ -221,7 +221,7 @@ def main() -> None:
 
     baseline_score = round(_strict_unit_score(sum(task_scores.values()) / 3.0), 4)
     tasks = [
-        {"id": task_name, "grader": "deterministic", "score": score}
+        {"id": task_name, "grader": "grader:grade", "score": score}
         for task_name, score in task_scores.items()
     ]
     tier_scores = {index + 1: score for index, score in enumerate(task_scores.values())}
