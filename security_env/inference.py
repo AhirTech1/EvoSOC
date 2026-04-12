@@ -200,7 +200,7 @@ def run_episode(client: OpenAI | None, model_name: str, tier: int, max_steps: in
                 "tier": tier,
                 "step": step,
                 "action": action.model_dump(exclude_none=True),
-                "reward": round(float(result.reward), 4),
+                "reward": round(_strict_unit_score(float(result.reward)), 4),
                 "done": bool(result.done),
             },
         )
@@ -250,7 +250,7 @@ def main() -> None:
         _emit_kv(
             "END",
             task=name,
-            score=score,
+            score=round(_strict_unit_score(score), 4),
             steps=max(1, int(final_state.get("step_count", 1) or 1)),
         )
 
