@@ -25,17 +25,12 @@ Choose the safest mitigation action based on active alerts and logs.
 
 
 def _emit(tag: str, payload: dict[str, Any]) -> None:
-    print(f"[{tag}] {json.dumps(payload, separators=(',', ':'), ensure_ascii=False)}")
+    print(f"[{tag}] {json.dumps(payload, separators=(',', ':'), ensure_ascii=False)}", flush=True)
 
 
-def _verbose_enabled() -> bool:
-    value = os.getenv("INFERENCE_VERBOSE", "0").strip().lower()
-    return value in {"1", "true", "yes", "on"}
-
-
-def _emit_if_verbose(tag: str, payload: dict[str, Any]) -> None:
-    if _verbose_enabled():
-        _emit(tag, payload)
+def _emit_kv(tag: str, **fields: Any) -> None:
+    ordered = [f"{key}={fields[key]}" for key in fields]
+    print(f"[{tag}] {' '.join(ordered)}", flush=True)
 
 
 def _alert_id(alert: dict[str, Any]) -> str | None:
@@ -199,7 +194,7 @@ def run_episode(client: OpenAI | None, model_name: str, tier: int, max_steps: in
         action = decide_action(client, model_name, obs.model_dump())
         result = env.step(action)
         total_reward += float(result.reward)
-        _emit_if_verbose(
+        _emit(
             "STEP",
             {
                 "tier": tier,
@@ -229,7 +224,7 @@ def main() -> None:
     if api_key:
         client = OpenAI(api_key=api_key, base_url=api_base_url)
 
-    _emit_if_verbose(
+    _emit(
         "START",
         {
             "model": model_name,
@@ -240,9 +235,10 @@ def main() -> None:
 
     task_scores: dict[str, float] = {}
     for tier, name in ((1, "easy_tier1"), (2, "medium_tier2"), (3, "hard_tier3")):
+        _emit_kv("START", task=name, tier=tier)
         score, final_state = run_episode(client=client, model_name=model_name, tier=tier)
         task_scores[name] = score
-        _emit_if_verbose(
+        _emit(
             "STEP",
             {
                 "task": name,
@@ -250,6 +246,12 @@ def main() -> None:
                 "score": score,
                 "attack_stopped": bool(final_state.get("attack", {}).get("stopped")),
             },
+        )
+        _emit_kv(
+            "END",
+            task=name,
+            score=score,
+            steps=max(1, int(final_state.get("step_count", 1) or 1)),
         )
 
     baseline_score = round(_strict_unit_score(sum(task_scores.values()) / 3.0), 4)
@@ -265,7 +267,7 @@ def main() -> None:
         "tasks": tasks,
         "baseline_score": baseline_score,
     }
-    _emit_if_verbose("END", final_payload)
+    _emit("END", final_payload)
     print(json.dumps(final_payload, separators=(",", ":"), ensure_ascii=False))
 
 
