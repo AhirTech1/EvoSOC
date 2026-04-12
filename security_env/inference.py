@@ -131,6 +131,28 @@ def _strict_unit_score(value: float) -> float:
     return max(0.01, min(0.99, bounded))
 
 
+def _score_from_state(state: dict[str, Any], total_reward: float, max_steps: int) -> float:
+    network = state.get("network_state", {})
+    attack = state.get("attack", {})
+
+    avg_health = (
+        float(network.get("web_health", 0.0))
+        + float(network.get("db_health", 0.0))
+        + float(network.get("app_health", 0.0))
+    ) / 3.0
+
+    if attack.get("stopped"):
+        containment = 0.9
+    elif attack.get("detected"):
+        containment = 0.5
+    else:
+        containment = 0.2
+
+    trajectory = (total_reward + float(max_steps)) / (2.0 * float(max_steps))
+    raw = 0.5 * containment + 0.3 * max(0.0, min(1.0, avg_health)) + 0.2 * max(0.0, min(1.0, trajectory))
+    return _strict_unit_score(raw)
+
+
 def decide_action(client: OpenAI | None, model_name: str, observation: dict) -> SecurityAction:
     if client is None:
         return _default_action(observation)
@@ -182,7 +204,7 @@ def run_episode(client: OpenAI | None, model_name: str, tier: int, max_steps: in
             break
 
     final_state = env.state()
-    score = _strict_unit_score((total_reward + 6.0) / 14.0)
+    score = _score_from_state(final_state, total_reward, max_steps)
     return round(score, 4), final_state
 
 
@@ -223,8 +245,9 @@ def main() -> None:
 
     baseline_score = round(_strict_unit_score(sum(task_scores.values()) / 3.0), 4)
     tasks = [
-        {"id": task_name, "grader": "grader:grade", "score": score}
-        for task_name, score in task_scores.items()
+        {"id": "easy_tier1", "grader": "grader:grade_easy_tier1", "score": task_scores["easy_tier1"]},
+        {"id": "medium_tier2", "grader": "grader:grade_medium_tier2", "score": task_scores["medium_tier2"]},
+        {"id": "hard_tier3", "grader": "grader:grade_hard_tier3", "score": task_scores["hard_tier3"]},
     ]
     tier_scores = {index + 1: score for index, score in enumerate(task_scores.values())}
     _emit(
