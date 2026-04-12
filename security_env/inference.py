@@ -28,6 +28,16 @@ def _emit(tag: str, payload: dict[str, Any]) -> None:
     print(f"[{tag}] {json.dumps(payload, separators=(',', ':'), ensure_ascii=False)}")
 
 
+def _verbose_enabled() -> bool:
+    value = os.getenv("INFERENCE_VERBOSE", "0").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _emit_if_verbose(tag: str, payload: dict[str, Any]) -> None:
+    if _verbose_enabled():
+        _emit(tag, payload)
+
+
 def _alert_id(alert: dict[str, Any]) -> str | None:
     value = alert.get("id") or alert.get("alert_id")
     return str(value) if value else None
@@ -189,7 +199,7 @@ def run_episode(client: OpenAI | None, model_name: str, tier: int, max_steps: in
         action = decide_action(client, model_name, obs.model_dump())
         result = env.step(action)
         total_reward += float(result.reward)
-        _emit(
+        _emit_if_verbose(
             "STEP",
             {
                 "tier": tier,
@@ -219,13 +229,12 @@ def main() -> None:
     if api_key:
         client = OpenAI(api_key=api_key, base_url=api_base_url)
 
-    _emit(
+    _emit_if_verbose(
         "START",
         {
             "model": model_name,
             "api_base_url": api_base_url,
             "llm_enabled": bool(api_key),
-            "tasks": ["easy_tier1", "medium_tier2", "hard_tier3"],
         },
     )
 
@@ -233,7 +242,7 @@ def main() -> None:
     for tier, name in ((1, "easy_tier1"), (2, "medium_tier2"), (3, "hard_tier3")):
         score, final_state = run_episode(client=client, model_name=model_name, tier=tier)
         task_scores[name] = score
-        _emit(
+        _emit_if_verbose(
             "STEP",
             {
                 "task": name,
@@ -250,15 +259,14 @@ def main() -> None:
         {"id": "hard_tier3", "grader": "grader:grade_hard_tier3", "score": task_scores["hard_tier3"]},
     ]
     tier_scores = {index + 1: score for index, score in enumerate(task_scores.values())}
-    _emit(
-        "END",
-        {
-            "task_scores": task_scores,
-            "tier_scores": tier_scores,
-            "tasks": tasks,
-            "baseline_score": baseline_score,
-        },
-    )
+    final_payload = {
+        "task_scores": task_scores,
+        "tier_scores": tier_scores,
+        "tasks": tasks,
+        "baseline_score": baseline_score,
+    }
+    _emit_if_verbose("END", final_payload)
+    print(json.dumps(final_payload, separators=(",", ":"), ensure_ascii=False))
 
 
 if __name__ == "__main__":
