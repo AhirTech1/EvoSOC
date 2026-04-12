@@ -1,0 +1,17 @@
+name: security-defense-v1
+version: 0.1.0
+description: RL environment for automated network threat containment.
+sdk: docker
+models:
+  action: SecurityAction
+  observation: SecurityObservation
+tasks:
+  - id: easy_tier1
+    name: "Easy: Brute Force"
+    grader: deterministic
+  - id: medium_tier2
+    name: "Medium: Lateral Movement"
+    grader: deterministic
+  - id: hard_tier3
+    name: "Hard: Data Exfiltration"
+    grader: deterministic

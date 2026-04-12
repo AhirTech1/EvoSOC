@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 try:
@@ -57,32 +58,40 @@ def grade_episode(tier: int, policy_actions: list[int], seed: int = 7) -> float:
     return score_from_state(env.state())
 
 
-def main() -> None:
+def grade(task_id: str, inference_output: dict[str, Any] | None = None) -> float:
+    """Grade a single task by ID. Called by the OpenEnv validator."""
+    tier_map = {"easy_tier1": 1, "medium_tier2": 2, "hard_tier3": 3}
     playbooks = {
-        "easy_tier1": (1, [0, 1, 3]),
-        "medium_tier2": (2, [0, 2, 3]),
-        "hard_tier3": (3, [0, 1, 3]),
+        "easy_tier1": [0, 1, 3],
+        "medium_tier2": [0, 2, 3],
+        "hard_tier3": [0, 1, 3],
     }
+    tier = tier_map.get(task_id, 1)
+    actions = playbooks.get(task_id, [0, 1, 3])
+    return grade_episode(tier, actions)
 
-    task_scores = {
-        task_name: grade_episode(tier, actions)
-        for task_name, (tier, actions) in playbooks.items()
-    }
-    tier_scores = {index + 1: score for index, score in enumerate(task_scores.values())}
+
+def main() -> None:
+    task_ids = ["easy_tier1", "medium_tier2", "hard_tier3"]
+
+    task_scores: dict[str, float] = {}
+    for task_id in task_ids:
+        task_scores[task_id] = grade(task_id)
+
+    tier_scores = {str(i + 1): score for i, score in enumerate(task_scores.values())}
     tasks = [
-        {"id": task_name, "grader": "deterministic", "score": score}
-        for task_name, score in task_scores.items()
+        {"id": task_id, "grader": "deterministic", "score": score}
+        for task_id, score in task_scores.items()
     ]
-    final = round(_strict_unit_score(sum(task_scores.values()) / 3.0), 4)
+    final = round(_strict_unit_score(sum(task_scores.values()) / len(task_scores)), 4)
 
-    print(
-        {
-            "task_scores": task_scores,
-            "tier_scores": tier_scores,
-            "tasks": tasks,
-            "final_score": final,
-        }
-    )
+    output = {
+        "task_scores": task_scores,
+        "tier_scores": tier_scores,
+        "tasks": tasks,
+        "final_score": final,
+    }
+    print(json.dumps(output))
 
 
 if __name__ == "__main__":
