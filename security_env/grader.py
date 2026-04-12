@@ -9,11 +9,17 @@ except ModuleNotFoundError:
 
 
 def _strict_unit_score(value: float) -> float:
+    """Clamp any score to the safe open interval (0.01, 0.99)."""
     bounded = max(0.0, min(1.0, value))
-    return max(0.0001, min(0.9999, bounded))
+    return max(0.01, min(0.99, bounded))
 
 
 def score_from_state(state: dict[str, Any]) -> float:
+    """Produce a gradient score from the final environment state.
+
+    Containment is NOT binary — it uses three tiers so the raw score
+    never lands on exactly 0.0 or 1.0 *before* clamping.
+    """
     network = state.get("network_state", {})
     attack = state.get("attack", {})
 
@@ -23,10 +29,17 @@ def score_from_state(state: dict[str, Any]) -> float:
         + float(network.get("app_health", 0.0))
     ) / 3.0
 
-    containment = 1.0 if attack.get("stopped") else 0.0
+    # Gradient containment: stopped → 0.85, detected → 0.35, else → 0.05
+    if attack.get("stopped"):
+        containment = 0.85
+    elif attack.get("detected"):
+        containment = 0.35
+    else:
+        containment = 0.05
+
     health_component = max(0.0, min(1.0, avg_health))
 
-    raw = 0.7 * containment + 0.3 * health_component
+    raw = 0.6 * containment + 0.4 * health_component
     return round(_strict_unit_score(raw), 4)
 
 
@@ -55,9 +68,21 @@ def main() -> None:
         task_name: grade_episode(tier, actions)
         for task_name, (tier, actions) in playbooks.items()
     }
+    tier_scores = {index + 1: score for index, score in enumerate(task_scores.values())}
+    tasks = [
+        {"id": task_name, "grader": "deterministic", "score": score}
+        for task_name, score in task_scores.items()
+    ]
     final = round(_strict_unit_score(sum(task_scores.values()) / 3.0), 4)
 
-    print({"task_scores": task_scores, "final_score": final})
+    print(
+        {
+            "task_scores": task_scores,
+            "tier_scores": tier_scores,
+            "tasks": tasks,
+            "final_score": final,
+        }
+    )
 
 
 if __name__ == "__main__":

@@ -126,8 +126,9 @@ def _parse_action_payload(text: str) -> dict[str, Any] | None:
 
 
 def _strict_unit_score(value: float) -> float:
+    """Clamp any score to the safe open interval (0.01, 0.99)."""
     bounded = max(0.0, min(1.0, value))
-    return max(0.0001, min(0.9999, bounded))
+    return max(0.01, min(0.99, bounded))
 
 
 def decide_action(client: OpenAI | None, model_name: str, observation: dict) -> SecurityAction:
@@ -181,7 +182,7 @@ def run_episode(client: OpenAI | None, model_name: str, tier: int, max_steps: in
             break
 
     final_state = env.state()
-    score = _strict_unit_score((total_reward + 5.0) / 10.0)
+    score = _strict_unit_score((total_reward + 6.0) / 14.0)
     return round(score, 4), final_state
 
 
@@ -219,7 +220,20 @@ def main() -> None:
         )
 
     baseline_score = round(_strict_unit_score(sum(task_scores.values()) / 3.0), 4)
-    _emit("END", {"task_scores": task_scores, "baseline_score": baseline_score})
+    tasks = [
+        {"id": task_name, "grader": "deterministic", "score": score}
+        for task_name, score in task_scores.items()
+    ]
+    tier_scores = {index + 1: score for index, score in enumerate(task_scores.values())}
+    _emit(
+        "END",
+        {
+            "task_scores": task_scores,
+            "tier_scores": tier_scores,
+            "tasks": tasks,
+            "baseline_score": baseline_score,
+        },
+    )
 
 
 if __name__ == "__main__":
