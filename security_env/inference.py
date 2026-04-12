@@ -189,18 +189,20 @@ def run_episode(client: OpenAI | None, model_name: str, tier: int, max_steps: in
 def main() -> None:
     api_base_url = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
     model_name = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct-1M")
+    openai_api_key = os.getenv("OPENAI_API_KEY")
     hf_token = os.getenv("HF_TOKEN")
+    api_key = openai_api_key or hf_token
 
     client: OpenAI | None = None
-    if hf_token:
-        client = OpenAI(api_key=hf_token, base_url=api_base_url)
+    if api_key:
+        client = OpenAI(api_key=api_key, base_url=api_base_url)
 
     _emit(
         "START",
         {
             "model": model_name,
             "api_base_url": api_base_url,
-            "llm_enabled": bool(hf_token),
+            "llm_enabled": bool(api_key),
             "tasks": ["easy_tier1", "medium_tier2", "hard_tier3"],
         },
     )
