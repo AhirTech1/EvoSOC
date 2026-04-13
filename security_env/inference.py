@@ -194,16 +194,6 @@ def run_episode(client: OpenAI | None, model_name: str, tier: int, max_steps: in
         action = decide_action(client, model_name, obs.model_dump())
         result = env.step(action)
         total_reward += float(result.reward)
-        _emit(
-            "STEP",
-            {
-                "tier": tier,
-                "step": step,
-                "action": action.model_dump(exclude_none=True),
-                "reward": round(_strict_unit_score(float(result.reward)), 4),
-                "done": bool(result.done),
-            },
-        )
         obs = result.observation
         if result.done:
             break
@@ -224,35 +214,15 @@ def main() -> None:
     if api_key:
         client = OpenAI(api_key=api_key, base_url=api_base_url)
 
-    _emit(
-        "START",
-        {
-            "model": model_name,
-            "api_base_url": api_base_url,
-            "llm_enabled": bool(api_key),
-        },
-    )
+    _emit_kv("START", task="run")
 
     task_scores: dict[str, float] = {}
     for tier, name in ((1, "easy_tier1"), (2, "medium_tier2"), (3, "hard_tier3")):
-        _emit_kv("START", task=name, tier=tier)
+        _emit_kv("START", task=name)
         score, final_state = run_episode(client=client, model_name=model_name, tier=tier)
         task_scores[name] = score
-        _emit(
-            "STEP",
-            {
-                "task": name,
-                "tier": tier,
-                "score": score,
-                "attack_stopped": bool(final_state.get("attack", {}).get("stopped")),
-            },
-        )
-        _emit_kv(
-            "END",
-            task=name,
-            score=round(_strict_unit_score(score), 4),
-            steps=max(1, int(final_state.get("step_count", 1) or 1)),
-        )
+        _emit_kv("STEP", task=name, reward=round(_strict_unit_score(score), 4))
+        _emit_kv("END", task=name, score=round(_strict_unit_score(score), 4))
 
     baseline_score = round(_strict_unit_score(sum(task_scores.values()) / 3.0), 4)
     tasks = [
@@ -260,14 +230,12 @@ def main() -> None:
         {"id": "medium_tier2", "grader": "grader:grade_medium_tier2", "score": task_scores["medium_tier2"]},
         {"id": "hard_tier3", "grader": "grader:grade_hard_tier3", "score": task_scores["hard_tier3"]},
     ]
-    tier_scores = {index + 1: score for index, score in enumerate(task_scores.values())}
     final_payload = {
         "task_scores": task_scores,
-        "tier_scores": tier_scores,
         "tasks": tasks,
         "baseline_score": baseline_score,
     }
-    _emit("END", final_payload)
+    _emit_kv("END", task="run", score=baseline_score)
     print(json.dumps(final_payload, separators=(",", ":"), ensure_ascii=False))
 
 
